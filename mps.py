@@ -4,6 +4,7 @@ from qiskit.primitives import StatevectorSampler
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 import matplotlib.pyplot as plt
 import time
+import tracemalloc
 
 def get_mps_simulator(max_bond_dim: int = None,
                       truncation_threshold: float = 1e-8) -> AerSimulator:
@@ -309,4 +310,125 @@ def _plot_scaling(results: dict, k_fixed: int = 1,
     plt.tight_layout()
     plt.show()
 
-    
+def run_memory_comparison(
+    circuit_builder: callable,
+    qubit_sizes:     list[int],
+    k_fixed:         int  = 1,
+    shots:           int  = 256,
+    title:           str  = "MPS vs Statevector — memory usage",
+) -> dict:
+    """
+    Generic memory usage comparison between StatevectorSampler and MPS
+    across increasing qubit counts.
+
+    Parameters
+    ----------
+    circuit_builder : callable(n) -> QuantumCircuit
+                      Builds the circuit for n qubits.
+                      Must NOT include measurements.
+    qubit_sizes     : list of qubit counts to sweep over.
+    k_fixed         : fixed iteration count (informational).
+    shots           : number of samples per run.
+    title           : suptitle string.
+
+    Returns
+    -------
+    results : dict with keys sv_memory, mps_memory, sv_failed, qubit_sizes
+    """
+    sv_memory  = []
+    mps_memory = []
+    sv_failed  = []
+
+    for n in qubit_sizes:
+        qc = circuit_builder(n)
+
+        # ── StatevectorSampler memory ───────────────────────────
+        try:
+            qc_m = qc.copy()
+            if qc_m.num_clbits == 0:
+                from qiskit.circuit import ClassicalRegister
+                qc_m.add_register(ClassicalRegister(n, "c"))
+            for i in range(n):
+                qc_m.measure(i, i)
+
+            pm  = generate_preset_pass_manager(optimization_level=1)
+            isa = pm.run(qc_m)
+
+            tracemalloc.start()
+            StatevectorSampler().run([isa], shots=shots).result()
+            _, peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+
+            sv_memory.append(peak / 1024**2)   # convert to MB
+            sv_failed.append(False)
+        except Exception as e:
+            tracemalloc.stop()
+            print(f"n={n}  SV failed: {e}")
+            sv_memory.append(None)
+            sv_failed.append(True)
+
+        # ── MPS memory ──────────────────────────────────────────
+        tracemalloc.start()
+        measure_mps(qc, n, shots=shots)
+        _, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+        mps_memory.append(peak / 1024**2)      # convert to MB
+
+        sv_str = f"{sv_memory[-1]:.2f}MB" if not sv_failed[-1] else "FAILED"
+        print(f"n={n:2d}  sv={sv_str:>12}  mps={mps_memory[-1]:.2f}MB")
+
+    results = dict(sv_memory=sv_memory, mps_memory=mps_memory,
+                   sv_failed=sv_failed, qubit_sizes=qubit_sizes)
+
+    _plot_memory_comparison(results, k_fixed=k_fixed, shots=shots, title=title)
+    return results
+
+
+def _plot_memory_comparison(results: dict, k_fixed: int = 1,
+                             shots: int = 256,
+                             title: str = "MPS vs Statevector — memory usage") -> None:
+
+    qubit_sizes = results["qubit_sizes"]
+    sv_memory   = results["sv_memory"]
+    mps_memory  = results["mps_memory"]
+    sv_failed   = results["sv_failed"]
+
+    valid_n  = [n for n, f in zip(qubit_sizes, sv_failed) if not f]
+    valid_sv = [m for m, f in zip(sv_memory,   sv_failed) if not f]
+    failed_n = [n for n, f in zip(qubit_sizes, sv_failed) if f]
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    ax.plot(valid_n,     valid_sv,   marker="o", color="steelblue",
+            linewidth=2, markersize=7, label="Statevector")
+    ax.plot(qubit_sizes, mps_memory, marker="s", color="tomato",
+            linewidth=2, markersize=7, label="MPS (exact)")
+
+    if failed_n:
+        first_fail = failed_n[0]
+        ax.axvspan(first_fail, max(qubit_sizes), alpha=0.08,
+                   color="tomato", label="MPS only region")
+        ax.axvline(x=first_fail, color="red", linestyle="--",
+                   linewidth=1.5, label=f"SV fails at n={first_fail}")
+        ax.annotate("SV out of memory\nMPS still runs ✓",
+                    xy=(first_fail + 0.2, max(valid_sv) * 0.5),
+                    fontsize=9, color="tomato",
+                    bbox=dict(boxstyle="round,pad=0.3",
+                              facecolor="lightyellow", alpha=0.8))
+
+    ax.set_xlabel("Number of qubits n", fontsize=12)
+    ax.set_ylabel("Peak memory usage (MB)", fontsize=12)
+    ax.set_title(f"Memory usage vs qubit count  (k={k_fixed}, shots={shots})",
+                 fontsize=13)
+    ax.set_xticks(qubit_sizes)
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+
+    plt.suptitle(
+        f"{title}  |  shots={shots}  |  "
+        f"SV max n={max(valid_n) if valid_n else 'N/A'}  |  "
+        f"MPS max n={max(qubit_sizes)}",
+        fontsize=12, y=1.02
+    )
+    plt.tight_layout()
+    plt.show()
