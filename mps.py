@@ -1,7 +1,5 @@
 from qiskit import QuantumCircuit, transpile
-import numpy as np
 from qiskit_aer import AerSimulator
-import grover
 from qiskit.primitives import StatevectorSampler
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 import matplotlib.pyplot as plt
