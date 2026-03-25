@@ -141,3 +141,30 @@ def plot_walk(n_position_qubits: int, steps: int, shots:int = 1024) -> None:
     plt.grid(alpha=0.3, axis="y")
     plt.tight_layout()
     plt.show()
+
+def construct_walk_no_measure(n_position_qubits: int, steps: int) -> QuantumCircuit:
+    """
+    Same as construct_walk but returns circuit without classical bits
+    """
+    n_total = n_position_qubits + 1
+    qc      = QuantumCircuit(n_total, name=f"QWalk_{steps}steps")  # no classical bits
+
+    coin     = n_position_qubits
+    position = list(range(n_position_qubits))
+
+    # initialise coin in 1/√2(|0⟩ + i|1⟩) for symmetric distribution
+    qc.h(coin)
+    qc.s(coin)
+
+    # initialise position at 0
+    initial_position = 0
+    for i, q in enumerate(position):
+        if (initial_position >> i) & 1:
+            qc.x(q)
+
+    # apply walk steps
+    step = dtqw_step_1d(n_position_qubits)
+    for _ in range(steps):
+        qc = qc.compose(step)
+
+    return qc
