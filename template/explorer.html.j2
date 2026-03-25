@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+    <style>
+      *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+      :root {
+        --bg: #fafaf9;
+        --card: #ffffff;
+        --border: #e7e5e4;
+        --text: #1c1917;
+        --dim: #78716c;
+        --accent: {{ algorithms[0].color }};
+      }
+
+      body {
+        font-family: 'Source Serif 4', Georgia, serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* ── header ── */
+      .hdr {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 48px 32px 0;
+      }
+      .hdr h1 {
+        font-family: 'Source Serif 4', Georgia, serif;
+        font-size: 1.6rem;
+        font-weight: 600;
+        color: var(--text);
+        letter-spacing: -0.01em;
+      }
+      .hdr .sub {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 0.72rem;
+        color: var(--dim);
+        margin-top: 6px;
+        letter-spacing: 0.02em;
+      }
+
+      .rule {
+        max-width: 960px;
+        margin: 20px auto 0;
+        padding: 0 32px;
+      }
+      .rule hr {
+        border: none;
+        border-top: 1px solid var(--border);
+      }
+
+      /* ── controls ── */
+      .ctrl {
+        max-width: 960px;
+        margin: 16px auto 0;
+        padding: 0 32px;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .tg {
+        display: flex;
+        gap: 2px;
+      }
+
+      .tb {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 0.72rem;
+        font-weight: 500;
+        padding: 6px 14px;
+        background: transparent;
+        color: var(--dim);
+        border: 1px solid transparent;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .tb:hover {
+        color: var(--text);
+      }
+      .tb.on {
+        color: var(--text);
+        background: var(--card);
+        border-color: var(--border);
+      }
+
+      .spacer { flex: 1; }
+
+      /* ── algorithm buttons ── */
+      .ab {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 0.72rem;
+        font-weight: 500;
+        padding: 6px 14px;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        color: var(--dim);
+      }
+      .ab:hover {
+        color: var(--text);
+      }
+      {% for algo in algorithms %}
+      .ab[data-a="{{ algo.key }}"].on {
+        color: var(--text);
+        border-color: var(--border);
+        background: var(--card);
+        box-shadow: inset 3px 0 0 {{ algo.color }};
+      }
+      {% endfor %}
+
+      /* ── plot card ── */
+      .pc {
+        max-width: 960px;
+        margin: 16px auto 0;
+        padding: 0 32px 48px;
+      }
+      .pk {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+      }
+      .pi {
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .pt {
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 600;
+        font-size: 0.82rem;
+        color: var(--text);
+      }
+      .pp {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 0.68rem;
+        color: var(--dim);
+      }
+
+      #plot {
+        width: 100%;
+        height: 520px;
+      }
+
+      .hn {
+        text-align: center;
+        padding: 8px;
+        font-size: 0.65rem;
+        color: var(--dim);
+        font-family: 'IBM Plex Mono', monospace;
+        border-top: 1px solid var(--border);
+        letter-spacing: 0.02em;
+      }
+
+      @media (max-width: 600px) {
+        .ctrl { flex-direction: column; align-items: flex-start; }
+        .spacer { display: none; }
+        #plot { height: 360px; }
+        .hdr h1 { font-size: 1.25rem; }
+        .hdr { padding-top: 32px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="hdr">
+      <h1>{{ title }}</h1>
+      <div class="sub">{{ subtitle }}</div>
+    </div>
+
+    <div class="rule"><hr></div>
+
+    <div class="ctrl">
+      <div class="tg" id="tabs">
+        {% for tab in plot_tabs %}
+        <button class="tb{{ ' on' if loop.first }}" data-p="{{ tab.key }}">{{ tab.label }}</button>
+        {% endfor %}
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="tg" id="algo">
+        {% for algo in algorithms %}
+        <button class="ab{{ ' on' if algo.is_default }}" data-a="{{ algo.key }}">{{ algo.label }}</button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="pc"><div class="pk">
+      <div class="pi">
+        <span class="pt" id="title"></span>
+        <span class="pp" id="params"></span>
+      </div>
+      <div id="plot"></div>
+      <div class="hn">drag to rotate · scroll to zoom · shift+drag to pan</div>
+    </div></div>
+
+    <script>
+      const D    = {{ data_json }};
+      const META = {{ algorithms_json }};
+
+      let currentPlot = 'nt';
+      let currentAlgo = '{{ default_algo }}';
+
+
+      function mkLayout(xLabel, yLabel) {
+        const ax = (title) => ({
+          title: { text: title, font: { size: 12, family: 'IBM Plex Mono, monospace', color: '#78716c' } },
+          gridcolor: '#e7e5e4',
+          zerolinecolor: '#d6d3d1',
+          showbackground: true,
+          backgroundcolor: '#fafaf9',
+          tickfont: { size: 10, family: 'IBM Plex Mono, monospace', color: '#a8a29e' },
+        });
+        return {
+          paper_bgcolor: 'rgba(0,0,0,0)',
+          plot_bgcolor:  'rgba(0,0,0,0)',
+          font: { family: 'IBM Plex Mono, monospace', color: '#78716c', size: 11 },
+          margin: { l: 0, r: 0, t: 0, b: 0 },
+          scene: {
+            bgcolor: 'rgba(0,0,0,0)',
+            xaxis: ax(xLabel),
+            yaxis: ax(yLabel),
+            zaxis: ax('S (bits)'),
+            camera: { eye: { x: 1.6, y: 1.6, z: 0.85 } },
+            aspectmode: 'manual',
+            aspectratio: { x: 1.15, y: 1.15, z: 0.8 },
+          },
+        };
+      }
+
+      /* ── Generic trace builder ── */
+
+      function mkTrace(z, x, y, colorscale, hover, opts) {
+        return [{
+          z, x, y, type: 'surface', colorscale,
+          showscale: true,
+          colorbar: {
+            title: { text: 'S', font: { size: 11, family: 'IBM Plex Mono' } },
+            tickfont: { size: 9, family: 'IBM Plex Mono' },
+            len: 0.55,
+            outlinewidth: 0,
+          },
+          hovertemplate: hover,
+          contours: {
+            z: { show: true, usecolormap: true, highlightcolor: '#1c1917', project: { z: true } }
+          },
+          ...opts,
+        }];
+      }
+
+      /* ── Surface builders ── */
+
+      function surfaceNT(key) {
+        const d  = D[key + '_nt'];
+        const cs = META[key].colorscale;
+        return mkTrace(d.S, d.t, d.n, cs, 'n=%{y}<br>t=%{x}<br>S=%{z:.4f}<extra></extra>');
+      }
+
+      function surfaceNJ(key) {
+        const d  = D[key + '_nj'];
+        const cs = META[key].colorscale;
+        const maxJ = Math.max(...d.S.map(r => r.length));
+        const xv = Array.from({ length: maxJ }, (_, i) => i + 1);
+        const z  = d.S.map(row => {
+          const padded = [...row];
+          while (padded.length < maxJ) padded.push(null);
+          return padded;
+        });
+        return mkTrace(z, xv, d.n, cs, 'n=%{y}<br>j=%{x}<br>S=%{z:.4f}<extra></extra>', { connectgaps: false });
+      }
+
+      function surfaceJT(key) {
+        const d  = D[key + '_jt'];
+        const cs = META[key].colorscale;
+        return mkTrace(d.S, d.t, d.j, cs, 'j=%{y}<br>t=%{x}<br>S=%{z:.4f}<extra></extra>');
+      }
+
+      /* ── Plot metadata ── */
+
+      const PLOTS = {
+        nt: {
+          title:  key => `S(n, t) — ${META[key].label}`,
+          params: key => 'j = n/2 (mid-chain cut) · marked = {{ marked_state }}',
+          axes:   ['t (iterations)', 'n (qubits)'],
+          build:  surfaceNT,
+        },
+        nj: {
+          title:  key => `S(n, j) — ${META[key].label}`,
+          params: key => `t = ${D[key + '_nj'].t_fixed} (fixed) · marked = {{ marked_state }}`,
+          axes:   ['j (bipartition)', 'n (qubits)'],
+          build:  surfaceNJ,
+        },
+        jt: {
+          title:  key => `S(j, t) — ${META[key].label}`,
+          params: key => `n = ${D[key + '_jt'].n_fixed} (fixed) · marked = {{ marked_state }}`,
+          axes:   ['t (iterations)', 'j (bipartition)'],
+          build:  surfaceJT,
+        },
+      };
+
+      /* ── Render ── */
+
+      function render() {
+        const p = PLOTS[currentPlot];
+        document.getElementById('title').textContent  = p.title(currentAlgo);
+        document.getElementById('params').textContent = p.params(currentAlgo);
+        Plotly.react('plot', p.build(currentAlgo), mkLayout(p.axes[0], p.axes[1]),
+                    { responsive: true, displayModeBar: false });
+      }
+
+      /* ── Tab listeners ── */
+
+      document.querySelectorAll('#tabs .tb').forEach(btn => {
+        btn.onclick = () => {
+          document.querySelectorAll('#tabs .tb').forEach(b => b.classList.remove('on'));
+          btn.classList.add('on');
+          currentPlot = btn.dataset.p;
+          render();
+        };
+      });
+
+      document.querySelectorAll('#algo .ab').forEach(btn => {
+        btn.onclick = () => {
+          document.querySelectorAll('#algo .ab').forEach(b => b.classList.remove('on'));
+          btn.classList.add('on');
+          currentAlgo = btn.dataset.a;
+          render();
+        };
+      });
+
+      render();
+    </script>
+  </body>
+</html>

@@ -9,80 +9,45 @@ qubits = 4
 marked_state = 7
 k_optimal = grover.optimal_iterations(qubits)
 
-def von_neumann_entropy_vs_j(qc: QuantumCircuit, n: int) -> list[float]:
-    """
-    Given a Grover circuit, compute S(j) for every bipartition j = 1..n-1.
-    Traces out qubits [j .. n] (right part + ancilla) to get rho_left.
-    """
+def von_neumann_entropy(qc: QuantumCircuit, n: int, j: int,
+                        extra_qubits: int, verbose = False) -> float:
     sv = Statevector(qc)
+    qubits_to_trace = list(range(j, n + extra_qubits))
+    rho = partial_trace(sv, qubits_to_trace)
+    S = round(float(entropy(rho, base=2)), 6)
+    if verbose:
+        print(f"n={n:2d}  j={j}  S={S:.5f}")
+    return S
+
+
+def von_neumann_entropy_vs_j(qc: QuantumCircuit, n: int) -> list[float]:
     entropies = []
     for j in range(1, n):
-        qubits_to_trace = list(range(j, n + 1))
-        rho_left = partial_trace(sv, qubits_to_trace)
-        S = entropy(rho_left, base=2)
-        entropies.append(S)
+        entropies.append(von_neumann_entropy(qc, n, j, 1))
     return entropies
 
 def von_neumann_entropy_vs_t(circuit_builder: callable, n: int,
                               j: int, t_max: int) -> list[float]:
-    """
-    Compute S at bipartition j for iterations t = 0 .. t_max-1.
- 
-    Parameters
-    ----------
-    circuit_builder : callable(t) -> QuantumCircuit
-        A function that takes an iteration index t and returns a circuit.
-    n  : number of search qubits (ancilla is qubit n).
-    j  : bipartition cut position.
-    t_max : number of iterations to sweep.
-    """
     entropies = []
     for t in range(t_max):
         qc = circuit_builder(t)
-        sv = Statevector(qc)
-        qubits_to_trace = list(range(j, n + 1))
-        rho_left = partial_trace(sv, qubits_to_trace)
-        S = entropy(rho_left, base=2)
-        entropies.append(S)
+        entropies.append(von_neumann_entropy(qc, n, j, 1))
     return entropies
  
 def von_neumann_entropy_vs_n(qubit_sizes: list[int], 
                              circuit_builder: callable) -> tuple[list[float], list[int]]:
-    """
-    Compute S at the middle bipartition j=n//2 for each n in qubit_sizes,
-    at a fixed Grover iteration t_fixed.
- 
-    Parameters
-    ----------
-    qubit_sizes : list of qubit counts to sweep over.
-    circuit_builder : callable(t) -> QuantumCircuit
-        A function that takes an iteration index t and returns a circuit.
- 
-    Returns
-    -------
-    entropies   : S values for each n
-    j_positions : middle bipartition index used for each n
-    """
-
     entropies   = []
     j_positions = []
     for n in qubit_sizes:
         j        = n // 2
         qc = circuit_builder(n)
-        sv = Statevector(qc)
-        qubits_to_trace = list(range(j, n + 1))
-        rho_left = partial_trace(sv, qubits_to_trace)
-        S        = entropy(rho_left, base=2)
-        entropies.append(S)
+        entropies.append(von_neumann_entropy(qc,n,j,1, verbose=True))
         j_positions.append(j)
-        print(f"n={n:2d}  j={j}  S={S:.5f}")
     return entropies, j_positions
 
 
 # ── plotting ──────────────────────────────────────────────────
 def plot_entropy_vs_j(qc: QuantumCircuit, n: int, t: int) -> None:
-    """Plot von Neumann entropy as a function of bipartition index j."""
-   
     entropies = von_neumann_entropy_vs_j(qc, n)
     j_values = list(range(1, n))
  
@@ -103,7 +68,6 @@ def plot_entropy_vs_j(qc: QuantumCircuit, n: int, t: int) -> None:
  
 def plot_entropy_vs_t(circuit_builder: callable, n: int, j: int,
                       t_max: int) -> None:
-    """Plot von Neumann entropy as a function of iteration t."""
     entropies = von_neumann_entropy_vs_t(circuit_builder, n, j, t_max)
     t_values = list(range(t_max))
  
@@ -123,18 +87,9 @@ def plot_entropy_vs_t(circuit_builder: callable, n: int, j: int,
 
 def plot_entropy_vs_n(qubit_sizes: list[int], circuit_builder: callable,
                       t_fixed: int) -> None:
-    """
-    Plot S at the middle bipartition j=n//2 vs qubit count n, at fixed t.
-
-    Parameters
-    ----------
-    qubit_sizes     : list of qubit counts to sweep over.
-    circuit_builder : callable(n) -> QuantumCircuit
-    t_fixed         : used only for the plot title/label.
-    """
     entropies, j_positions = von_neumann_entropy_vs_n(qubit_sizes, circuit_builder)
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    _, ax = plt.subplots(figsize=(10, 6))
     ax.plot(qubit_sizes, entropies, marker="o", linewidth=2.5,
             color="steelblue", markerfacecolor="tomato",
             markersize=9, label=f"S(j=n//2) at t={t_fixed}")
@@ -158,16 +113,6 @@ def plot_entropy_vs_n(qubit_sizes: list[int], circuit_builder: callable,
 
 def plot_entropy_vs_n_multi_t(qubit_sizes: list[int],
                                builder_per_t: list[tuple[int, callable]]) -> None:
-    """
-    Plot S at the middle bipartition j=n//2 vs qubit count n,
-    for multiple t values on the same axes.
-
-    Parameters
-    ----------
-    qubit_sizes    : list of qubit counts to sweep over.
-    builder_per_t  : list of (t, circuit_builder) pairs where
-                     circuit_builder is callable(n) -> QuantumCircuit.
-    """
     colors = plt.cm.viridis(np.linspace(0, 1, len(builder_per_t)))
 
     plt.figure(figsize=(11, 6))

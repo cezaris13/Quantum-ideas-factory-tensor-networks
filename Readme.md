@@ -36,10 +36,10 @@ For each algorithm the notebook explores three slices through the `(n, t, j)` pa
 
 All entropy computations use Qiskit's `Statevector` simulation followed by `partial_trace` and `entropy` (base-2).
 
-## Installlation:
+## Installation:
 
 ```bash
-pip install qiskit numpy matplotlib pylatexenc
+pip install qiskit numpy matplotlib pylatexenc jinja2
 ```
 
 ## Team
