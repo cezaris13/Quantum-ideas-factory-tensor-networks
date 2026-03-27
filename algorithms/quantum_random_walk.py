@@ -2,12 +2,12 @@ from qiskit import QuantumCircuit
 import numpy as np
 import matplotlib.pyplot as plt
 
-import utils
+import utils.measure as measure
 
 
 def get_pos_distribution(qc, n_pos, shots, skip_qubits=[]):
     n_nodes = 2**n_pos
-    probs = utils.measure(qc, shots, skip_qubits)
+    probs = measure.measure(qc, shots, skip_qubits)
     pos_prob = np.zeros(n_nodes)
     probs = {int(k, 2): v for k, v in probs.items()}
     for k, v in probs.items():
@@ -85,7 +85,7 @@ def construct_walk(n_position_qubits: int, steps: int) -> QuantumCircuit:
     QuantumCircuit with position qubits 0..n-1 and coin qubit n.
     """
     n_total = n_position_qubits + 1
-    qc = QuantumCircuit(n_total, n_total-1, name=f"QWalk_{steps}steps")
+    qc = QuantumCircuit(n_total, n_total - 1, name=f"QWalk_{steps}steps")
 
     coin = n_position_qubits
     position = list(range(n_position_qubits))
@@ -107,7 +107,7 @@ def construct_walk(n_position_qubits: int, steps: int) -> QuantumCircuit:
 
 
 def walk_distribution(
-    n_position_qubits: int, steps: int, shots:int =1024
+    n_position_qubits: int, steps: int, shots: int = 1024
 ) -> tuple[np.ndarray, np.ndarray, float]:
     """
     Run a discrete-time quantum walk and return the position distribution.
@@ -126,8 +126,8 @@ def walk_distribution(
     return nodes, probs, var
 
 
-def plot_walk(n_position_qubits: int, steps: int, shots:int = 1024) -> None:
-    _, probs, var = walk_distribution(n_position_qubits, steps, shots = shots)
+def plot_walk(n_position_qubits: int, steps: int, shots: int = 1024) -> None:
+    _, probs, var = walk_distribution(n_position_qubits, steps, shots=shots)
     ns = signed_nodes(2**n_position_qubits)
 
     plt.figure(figsize=(13, 5))
@@ -142,14 +142,15 @@ def plot_walk(n_position_qubits: int, steps: int, shots:int = 1024) -> None:
     plt.tight_layout()
     plt.show()
 
+
 def construct_walk_no_measure(n_position_qubits: int, steps: int) -> QuantumCircuit:
     """
     Same as construct_walk but returns circuit without classical bits
     """
     n_total = n_position_qubits + 1
-    qc      = QuantumCircuit(n_total, name=f"QWalk_{steps}steps")  # no classical bits
+    qc = QuantumCircuit(n_total, name=f"QWalk_{steps}steps")  # no classical bits
 
-    coin     = n_position_qubits
+    coin = n_position_qubits
     position = list(range(n_position_qubits))
 
     # initialise coin in 1/√2(|0⟩ + i|1⟩) for symmetric distribution

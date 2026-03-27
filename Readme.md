@@ -26,6 +26,10 @@ Constructs the standard Grover circuit with `n` search qubits, one ancilla, and 
 
 Implements a coined quantum walk on a cycle of 2ⁿ nodes. The coin is a Hadamard gate on a dedicated coin qubit, and the shift operator conditionally increments or decrements the position register using multi-controlled-X ladders. The coin is initialized in the symmetric state (H followed by S gate) to produce a balanced distribution.
 
+### Quantum Fourier Transform
+
+Implements the standard QFT on `n` qubits, consisting of Hadamard gates interleaved with controlled phase rotations of decreasing angle (2π/2ᵏ), followed by a qubit-order reversal via SWAP gates. Applied to computational basis states |x⟩, the circuit produces a uniform superposition with phases encoding the binary fraction expansion of x/2ⁿ. Because the QFT builds entanglement in a structured, layer-by-layer fashion, it serves as a natural reference point for understanding how long-range phase correlations develop across the register.
+
 ## Entropy Analysis
 
 For each algorithm the notebook explores three slices through the `(n, t, j)` parameter space:
@@ -39,7 +43,12 @@ All entropy computations use Qiskit's `Statevector` simulation followed by `part
 ## Installation:
 
 ```bash
-pip install qiskit numpy matplotlib pylatexenc jinja2
+make install
+```
+
+## 3D plot generation:
+```bash
+make build_3d
 ```
 
 ## Team

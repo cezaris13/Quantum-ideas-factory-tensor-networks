@@ -1,41 +1,22 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable
 
 from jinja2 import Environment, FileSystemLoader
-from qiskit import QuantumCircuit
 
-import grover
-import entropy
-import quantum_random_walk
+import algorithms.grover as grover
+import utils.entropy as entropy
+import algorithms.quantum_random_walk as quantum_random_walk
+import algorithms.qft as qft
+from algorithm import Algorithm
 
 TEMPLATE_DIR = Path(__file__).parent / "template"
+print(TEMPLATE_DIR)
 TEMPLATE_NAME = "explorer.html.j2"
-OUTPUT_FILE = "entropy_3d_explorer.html"
+OUTPUT_FILE = Path(__file__).parent / "entropy_3d_explorer.html"
 
 MARKED_STATE = 7  # shared oracle target
-
-
-@dataclass
-class Algorithm:
-    key: str  # unique id, used in data keys + JS
-    label: str  # display name for UI
-    color: str  # accent hex for button / gradient
-    colorscale: list[list]  # Plotly colorscale stops
-    build_circuit: Callable[[int, int], QuantumCircuit]  # (n, t) -> circuit
-    extra_qubits: int = 1  # ancilla / coin qubits beyond n
-
-    # sweep ranges — override per algorithm
-    n_range_nt: range = field(default_factory=lambda: range(2, 9))
-    t_range_nt: range = field(default_factory=lambda: range(0, 13))
-    n_range_nj: range = field(default_factory=lambda: range(2, 9))
-    t_fixed_nj: int = 3
-    n_fixed_jt: int = 7
-    t_range_jt: range = field(default_factory=lambda: range(0, 15))
-
 
 ALGORITHMS: list[Algorithm] = [
     Algorithm(
@@ -79,6 +60,27 @@ ALGORITHMS: list[Algorithm] = [
         t_fixed_nj=10,
         n_fixed_jt=6,
         t_range_jt=range(0, 40),
+    ),
+    Algorithm(
+        key="qft",
+        label="Quantum Fourier Transform",
+        color="#21918c",
+        colorscale=[
+            [0.0, "#440154"],
+            [0.2, "#3b528b"],
+            [0.4, "#21918c"],
+            [0.6, "#5ec962"],
+            [0.8, "#a0da39"],
+            [1.0, "#fde725"],
+        ],
+        build_circuit=lambda n, t: qft.qft(n, t, 0b0),
+        extra_qubits=0,
+        n_range_nt=range(2, 9),
+        t_range_nt=range(0, 30),
+        n_range_nj=range(2, 9),
+        t_fixed_nj=3,
+        n_fixed_jt=7,
+        t_range_jt=range(0, 30),
     ),
 ]
 

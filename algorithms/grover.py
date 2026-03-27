@@ -1,6 +1,7 @@
 from qiskit import QuantumCircuit
 import numpy as np
 
+
 def inversion_about_mean(qc: QuantumCircuit, qubits: int):
     # Inversion about mean circuit, derivation can be found in exercise sheet:
     # H^{⊗3} X^{⊗3} (X1 Z1 X1 Z1) CCZ_{1,2,3} X^{⊗3} H^{⊗3}
@@ -56,5 +57,6 @@ def construct_grover(qubits: int, k: int, marked_state: int) -> QuantumCircuit:
         inversion_about_mean(qc, qubits)
     return qc
 
-def optimal_iterations(n:int) -> int:
+
+def optimal_iterations(n: int) -> int:
     return int(np.round(np.pi / 4 * np.sqrt(2**n) - 0.5))

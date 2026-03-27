@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from qiskit.quantum_info import Statevector, partial_trace, entropy
 import numpy as np
 
-import grover
+import algorithms.grover as grover
 
 qubits = 4
 marked_state = 7
@@ -20,35 +20,35 @@ def von_neumann_entropy(qc: QuantumCircuit, n: int, j: int,
     return S
 
 
-def von_neumann_entropy_vs_j(qc: QuantumCircuit, n: int) -> list[float]:
+def von_neumann_entropy_vs_j(qc: QuantumCircuit, n: int, extra_qubits: int) -> list[float]:
     entropies = []
     for j in range(1, n):
-        entropies.append(von_neumann_entropy(qc, n, j, 1))
+        entropies.append(von_neumann_entropy(qc, n, j, extra_qubits))
     return entropies
 
 def von_neumann_entropy_vs_t(circuit_builder: callable, n: int,
-                              j: int, t_max: int) -> list[float]:
+                              j: int, t_max: int, extra_qubits: int) -> list[float]:
     entropies = []
     for t in range(t_max):
         qc = circuit_builder(t)
-        entropies.append(von_neumann_entropy(qc, n, j, 1))
+        entropies.append(von_neumann_entropy(qc, n, j, extra_qubits))
     return entropies
  
 def von_neumann_entropy_vs_n(qubit_sizes: list[int], 
-                             circuit_builder: callable) -> tuple[list[float], list[int]]:
+                             circuit_builder: callable, extra_qubits:int) -> tuple[list[float], list[int]]:
     entropies   = []
     j_positions = []
     for n in qubit_sizes:
         j        = n // 2
         qc = circuit_builder(n)
-        entropies.append(von_neumann_entropy(qc,n,j,1, verbose=True))
+        entropies.append(von_neumann_entropy(qc,n,j,extra_qubits, verbose=True))
         j_positions.append(j)
     return entropies, j_positions
 
 
 # ── plotting ──────────────────────────────────────────────────
-def plot_entropy_vs_j(qc: QuantumCircuit, n: int, t: int) -> None:
-    entropies = von_neumann_entropy_vs_j(qc, n)
+def plot_entropy_vs_j(qc: QuantumCircuit, n: int, t: int, extra_qubits: int) -> None:
+    entropies = von_neumann_entropy_vs_j(qc, n, extra_qubits)
     j_values = list(range(1, n))
  
     plt.figure(figsize=(9, 5))
@@ -67,8 +67,8 @@ def plot_entropy_vs_j(qc: QuantumCircuit, n: int, t: int) -> None:
  
  
 def plot_entropy_vs_t(circuit_builder: callable, n: int, j: int,
-                      t_max: int) -> None:
-    entropies = von_neumann_entropy_vs_t(circuit_builder, n, j, t_max)
+                      t_max: int, extra_qubits: int) -> None:
+    entropies = von_neumann_entropy_vs_t(circuit_builder, n, j, t_max, extra_qubits)
     t_values = list(range(t_max))
  
     plt.figure(figsize=(9, 5))
@@ -86,8 +86,8 @@ def plot_entropy_vs_t(circuit_builder: callable, n: int, j: int,
     plt.show()
 
 def plot_entropy_vs_n(qubit_sizes: list[int], circuit_builder: callable,
-                      t_fixed: int) -> None:
-    entropies, j_positions = von_neumann_entropy_vs_n(qubit_sizes, circuit_builder)
+                      t_fixed: int, extra_qubits: int) -> None:
+    entropies, j_positions = von_neumann_entropy_vs_n(qubit_sizes, circuit_builder,extra_qubits)
 
     _, ax = plt.subplots(figsize=(10, 6))
     ax.plot(qubit_sizes, entropies, marker="o", linewidth=2.5,
@@ -112,12 +112,12 @@ def plot_entropy_vs_n(qubit_sizes: list[int], circuit_builder: callable,
 
 
 def plot_entropy_vs_n_multi_t(qubit_sizes: list[int],
-                               builder_per_t: list[tuple[int, callable]]) -> None:
+                               builder_per_t: list[tuple[int, callable]], extra_qubits: int) -> None:
     colors = plt.cm.viridis(np.linspace(0, 1, len(builder_per_t)))
 
     plt.figure(figsize=(11, 6))
     for (t, circuit_builder), color in zip(builder_per_t, colors):
-        entropies, _ = von_neumann_entropy_vs_n(qubit_sizes, circuit_builder)
+        entropies, _ = von_neumann_entropy_vs_n(qubit_sizes, circuit_builder, extra_qubits)
         plt.plot(qubit_sizes, entropies, marker="o", linewidth=2,
                  color=color, markersize=7, label=f"t={t}")
 
